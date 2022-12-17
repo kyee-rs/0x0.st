@@ -9,7 +9,7 @@ This is a wrapper for [0x0.st](https://0x0.st) that allows you to upload files f
 ### Installation
 
 ```bash
-$ curl -sL https://raw.githubusercontent.com/voxelin/0x0/master/install.sh | sh
+$ curl -sL https://raw.githubusercontent.com/voxelin/0x0.st/master/install.sh | sh
 ```
 
 ### Building
