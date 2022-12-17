@@ -29,13 +29,14 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
 }
 
 fn main() {
-    let matches = build_cli().get_matches();
+    let matches = build_cli().get_matches(); // Get the arguments from the user
     if let Some(generator) = matches.get_one::<Shell>("generator").copied() {
         let mut cmd = build_cli();
         print_completions(generator, &mut cmd);
         std::process::exit(0);
-    }
-    let file = matches.get_one::<String>("file");
+    } // Generate the completions
+
+    let file = matches.get_one::<String>("file"); // Get the file path
     if file.is_none() {
         println!(
             "{}",
@@ -43,23 +44,30 @@ fn main() {
         );
         std::process::exit(0);
     }
+
+    // Create the multipart form
     let uploader = reqwest::blocking::multipart::Form::new().file("file", file.unwrap());
     if uploader.is_err() {
+        // Check for the errors
         println!(
             "{}",
             format!("Error! Check the file path again.").bold().red()
         );
         std::process::exit(1);
     } else if uploader.is_ok() {
-        println!("{}", format!("Uploading file...").bold().green());
+        // Or print the uploading message
+        println!("- {}", format!("Uploading file...").bold().yellow());
+        println!("- {}", format!("Done!").bold().green());
     }
+
     // Make Post request to 0x0.st
     let client = reqwest::blocking::Client::new();
     let res = client
         .post("https://0x0.st")
         .multipart(uploader.unwrap())
         .send();
-    // Unwrap the error
+
+    // Check for the errors
     if res.is_err() {
         println!(
             "{}",
