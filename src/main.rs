@@ -1,10 +1,7 @@
-#![allow(clippy::useless_format)]
 use clap::{value_parser, Arg, ArgAction, Command, ValueHint};
 use clap_complete::{generate, Generator, Shell};
 use colored::Colorize;
 use std::{io, path::PathBuf};
-use uuid::Uuid;
-/// Simple program to upload file to 0x0.st
 
 fn build_cli() -> Command {
     Command::new("0x0")
@@ -15,21 +12,6 @@ fn build_cli() -> Command {
                 .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Set)
                 .value_hint(ValueHint::AnyPath),
-        )
-        .arg(
-            Arg::new("expires")
-                .help("Expire time in hours (e.g. 3)")
-                .short('e')
-                .long("expires")
-                .value_parser(value_parser!(i8))
-                .action(ArgAction::Set)
-                .value_hint(ValueHint::Other),
-        )
-        .arg(
-            Arg::new("secret")
-                .help("Use UUIDv4 to cypher your url. [personal recommendation]")
-                .action(ArgAction::SetTrue)
-                .short('s'),
         )
         .arg(
             Arg::new("generator")
@@ -45,54 +27,46 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
 }
 
 fn main() {
-    let matches = build_cli().get_matches(); // Get the arguments from the user
+    let matches = build_cli().get_matches();
 
     // -------------------------------------------------------------------------------------
     if let Some(generator) = matches.get_one::<Shell>("generator").copied() {
         let mut cmd = build_cli();
         print_completions(generator, &mut cmd);
-        std::process::exit(0);
     }
     // -------------------------------------------------------------------------------------
 
-    let expires = matches.get_one::<i8>("expires"); // Get the expire time
-    let secret = matches.get_one::<bool>("secret"); // Get the secret state
-    let file = matches.get_one::<PathBuf>("file"); // Get the file path
+    let file = matches.get_one::<PathBuf>("file");
 
     // Check if the user provided a file
     if file.is_none() {
-        println!(
-            "{}",
-            format!("Error: you did not provide any file!").bold().red()
-        );
-        std::process::exit(0);
+        eprintln!("{}", "Error: you did not provide any file!".bold().red());
+        return;
     }
 
     // Create the multipart form
-    let mut form = reqwest::blocking::multipart::Form::new();
-    form = form.file("file", file.unwrap()).unwrap();
-    if let Some(expires) = expires {
-        form = form.text("expires", expires.to_string());
-    }
-    if secret.is_some() {
-        form = form.text("secret", Uuid::new_v4().to_string());
+    let form = reqwest::blocking::multipart::Form::new().file("file", file.unwrap());
+    if form.is_err() {
+        eprintln!("{}", "Error creating the form.".bold().red());
+        return;
     }
 
-    // Print the uploading message
-    println!("- {}", format!("Uploading file...").bold().yellow());
-    println!("- {}", format!("Done!").bold().green());
+    let formunwrap = form.unwrap();
+
+    println!("- {}", "Uploading file...".bold().yellow());
 
     // Make Post request to 0x0.st
     let client = reqwest::blocking::Client::new();
-    let res = client.post("https://0x0.st").multipart(form).send();
-
+    let response = client.post("https://0x0.st").multipart(formunwrap).send();
     // Check for the errors
-    if res.is_err() {
-        println!(
+    if let Err(err) = response {
+        eprintln!(
             "{}",
-            format!("Error! Check the file path again.").bold().red()
+            err.to_string()
+                .replace("error sending request for url (https://0x0.st/): ", "")
         );
-        std::process::exit(1);
+        return;
     }
-    println!("{}", res.unwrap().text().unwrap());
+    println!("- {}", "Done!".bold().green());
+    println!("- {}", response.unwrap().text().unwrap());
 }
